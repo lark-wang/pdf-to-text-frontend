@@ -1,92 +1,104 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 function App() {
   const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
   const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
-  const handleFileChange = async (e) => {
-    const pdfFile = e.target.files[0];
-    setFile(pdfFile);
+  const canvasRef = useRef(null);
 
-    const fileReader = new FileReader();
-    fileReader.onload = async function () {
-      const typedArray = new Uint8Array(this.result);
-      const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+  const handleUpload = async () => {
+    if (!file) return;
+
+    setLoading(true);
+    setText("");
+
+    try {
+   
+      setPdfUrl(URL.createObjectURL(file));
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axios.post(
+        "https://pdf-to-text-tg44.onrender.com/upload",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      setText(res.data.text);
+    } catch (err) {
+      console.error(err);
+      setText("Error processing PDF");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const renderPage = async () => {
+      if (!pdfUrl) return;
+      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
       const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
+      const viewport = page.getViewport({ scale: 1.2 });
 
-      const canvas = document.createElement("canvas");
+      const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
       canvas.height = viewport.height;
       canvas.width = viewport.width;
 
       await page.render({ canvasContext: context, viewport }).promise;
-      setPreview(canvas.toDataURL());
     };
-    fileReader.readAsArrayBuffer(pdfFile);
-  };
 
-  const handleUpload = async () => {
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await axios.post(
-      "https://pdf-to-text-tg44.onrender.com/upload",
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      }
-    );
-
-    setText(res.data.text);
-  };
+    renderPage();
+  }, [pdfUrl]);
 
   return (
-    <div style={{ padding: "20px", display: "flex", gap: "20px", flexWrap: "wrap" }}>
-      <div style={{ width: "100%" }}>
-        <p style={{ fontStyle: "italic", marginBottom: "10px" }}>
-          Take a link to this PDF page and get the text.  
-          <br />
-          Note: processing may take a few minutes.
-        </p>
+    <div style={{ padding: "20px" }}>
+      <h1>PDF to Text</h1>
+      <p>
+        Take link to this PDF page and get the text. Note processing may take a
+        few minutes.
+      </p>
 
-        <input type="file" onChange={handleFileChange} />
-        <button onClick={handleUpload} style={{ marginLeft: "10px" }}>
-          Upload
-        </button>
-      </div>
+      <input type="file" onChange={(e) => setFile(e.target.files[0])} />
 
-      <div style={{ flex: 1 }}>
-        <h2>PDF Preview</h2>
-        {preview && (
-          <img
-            src={preview}
-            alt="PDF page"
-            style={{ width: "100%", border: "1px solid #ccc" }}
-          />
-        )}
-      </div>
+      <button onClick={handleUpload} disabled={loading}>
+        {loading ? "Processing..." : "Upload"}
+      </button>
 
-      <div style={{ flex: 1 }}>
-        <h2>Extracted Text</h2>
-        <pre
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "20px",
+          marginTop: "20px",
+        }}
+      >
+    
+        <div>
+          <canvas ref={canvasRef} style={{ border: "1px solid #ccc" }}></canvas>
+        </div>
+
+
+        <div
           style={{
-            background: "#f5f5f5",
+            background: "#f9f9f9",
             padding: "10px",
-            borderRadius: "8px",
-            maxWidth: "fit-content",
+            display: "inline-block", 
+            maxWidth: "100%",
             whiteSpace: "pre-wrap",
+            border: "1px solid #ddd",
           }}
         >
           {text}
-        </pre>
+        </div>
       </div>
     </div>
   );
