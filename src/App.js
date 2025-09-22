@@ -63,8 +63,17 @@ function App() {
     <div style={{ padding: "20px" }}>
       <h1>PDF to Text</h1>
       <p>
-        Take link to this PDF page and get the text. Note processing may take a
-        few minutes.
+        Try the demo: upload a sample PDF page from {" "}
+    <a
+      href="https://drive.google.com/drive/folders/15wiwux3TV_Diz5N4tYep-5BMFhFOaHG_?usp=sharing"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      this link
+        </a>{" "}
+    and extract the text.
+
+        Note: Processing may take a little while, especially on the first request as the server wakes up.
       </p>
 
       <input type="file" onChange={(e) => setFile(e.target.files[0])} />
