@@ -72,7 +72,9 @@ function App() {
       this link
         </a>{" "}
     and extract the text.
+     </p>
 
+       <p>
         Note: Processing may take a little while, especially on the first request as the server wakes up.
       </p>
 
